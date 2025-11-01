@@ -30,7 +30,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const params = new URLSearchParams(window.location.search);
   let twitchTitleStream = params.get("twitchTitleStream");
-  const targetUserProfileImageId = params.get("targetUserProfileImageId");
+  let targetUserProfileImageId = params.get("targetUserProfileImageId");
 
   const body = document.body;
 
@@ -349,35 +349,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    const tryStreamerbotClient = () => {
-      try {
-        if (window.StreamerbotClient) {
-          client = new StreamerbotClient({
-            host,
-            port: Number(port),
-            password: password || undefined,
-          });
-
-          if (typeof client.on === "function") {
-            client.on("open", () => console.log("StreamerbotClient: open"));
-            client.on("close", () => console.log("StreamerbotClient: close"));
-            client.on("error", (e) =>
-              console.warn("StreamerbotClient error:", e)
-            );
-            client.on("message", (m) => handleIncoming(m));
-          }
-
-          if (typeof client.connect === "function") client.connect();
-          if (typeof client.open === "function") client.open();
-
-          return true;
-        }
-      } catch (e) {
-        console.warn("StreamerbotClient init failed:", e);
-      }
-      return false;
-    };
-
     const tryWebSocket = () => {
       try {
         const protocol = location.protocol === "https:" ? "wss:" : "ws:";
@@ -412,16 +383,46 @@ document.addEventListener("DOMContentLoaded", () => {
       return false;
     };
 
-    if (!tryStreamerbotClient()) {
-      tryWebSocket();
+    const tryStreamerbotClient = () => {
+      try {
+        if (window.StreamerbotClient) {
+          client = new StreamerbotClient({
+            host,
+            port: Number(port),
+            password: password || undefined,
+          });
+
+          if (typeof client.on === "function") {
+            client.on("open", () => console.log("StreamerbotClient: open"));
+            client.on("close", () => console.log("StreamerbotClient: close"));
+            client.on("error", (e) =>
+              console.warn("StreamerbotClient error:", e)
+            );
+            client.on("message", (m) => handleIncoming(m));
+          }
+
+          if (typeof client.connect === "function") client.connect();
+          if (typeof client.open === "function") client.open();
+
+          return true;
+        }
+      } catch (e) {
+        console.warn("StreamerbotClient init failed:", e);
+      }
+      return false;
+    };
+
+    if (!tryWebSocket()) {
+      tryStreamerbotClient();
     }
 
     return {
       send: (obj) => {
         const payload = typeof obj === "string" ? obj : JSON.stringify(obj);
         try {
-          if (client && typeof client.send === "function") client.send(payload);
-          else if (ws && ws.readyState === WebSocket.OPEN) ws.send(payload);
+          if (ws && ws.readyState === WebSocket.OPEN) ws.send(payload);
+          else if (client && typeof client.send === "function")
+            client.send(payload);
         } catch (e) {
           console.warn("Send failed:", e);
         }
